@@ -25,6 +25,9 @@ def generate_table_schema(data, include_columns=None, exclude_columns=None, colu
                 typename = 'real'
             except ValueError:
                 typename = 'text'
+        elif v == None:
+            v = 0
+            typename = 'integer'
         else:
             raise ValueError(f'value for key "{k}" had unexpected type: "{v}"')
 

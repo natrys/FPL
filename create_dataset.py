@@ -10,13 +10,13 @@ import requests
 
 import tables as tables
 
-# logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)
 
 files = {
-    'bootstrap-static.json': 'https://fantasy.premierleague.com/drf/bootstrap-static',
-    'fixtures.json': 'https://fantasy.premierleague.com/drf/fixtures/',
+    'bootstrap-static.json': 'https://fantasy.premierleague.com/api/bootstrap-static/',
+    'fixtures.json': 'https://fantasy.premierleague.com/api/fixtures/',
 }
-element_summaries_base_url = 'https://fantasy.premierleague.com/drf/element-summary/'
+element_summaries_base_url = 'https://fantasy.premierleague.com/api/element-summary/'
 
 
 def download_bootstrap_files(dest):
@@ -40,7 +40,7 @@ def get_player_ids(conn):
 def download_element_summaries(dest, player_ids):
     total = len(player_ids)
     for i, pid in enumerate(player_ids):
-        url = f'{element_summaries_base_url}{pid}'
+        url = f'{element_summaries_base_url}{pid}/'
         path = os.path.join(dest, f'{pid}.json')
 
         logging.info(f'Downloading "{url}" to "{path}" ({i} of {total})')
@@ -64,22 +64,27 @@ def create_events_table(conn, events, table_name='events'):
     column_constraints = {
         'id': 'primary key',
     }
+    exclude_columns = { "chip_plays", "top_element_info", "sub_positions_locked", "team_division" }
 
     with conn:
-        schema = tables.generate_table_schema(events, column_constraints=column_constraints)
+        schema = tables.generate_table_schema(events,
+                exclude_columns=exclude_columns,
+                column_constraints=column_constraints)
         tables.create_table(conn, schema, table_name)
-        tables.populate_table(conn, schema, table_name, events)
+        tables.populate_table(conn, schema, table_name, events,
+                exclude_columns=exclude_columns)
 
 
 def create_roles_table(conn, roles, table_name='roles'):
     column_constraints = {
         'id': 'primary key',
     }
+    exclude_columns = { "chip_plays", "top_element_info", "sub_positions_locked", "team_division" }
 
     with conn:
-        schema = tables.generate_table_schema(roles, column_constraints=column_constraints)
+        schema = tables.generate_table_schema(roles, exclude_columns=exclude_columns, column_constraints=column_constraints)
         tables.create_table(conn, schema, table_name)
-        tables.populate_table(conn, schema, table_name, roles)
+        tables.populate_table(conn, schema, table_name, roles, exclude_columns=exclude_columns)
 
 
 def create_teams_table(conn, teams, table_name='teams'):
@@ -164,6 +169,9 @@ def main():
         fixtures = json.load(f, object_pairs_hook=OrderedDict)
 
     print('Using database file:', database_file)
+
+    with open(database_file, 'a'):
+        os.utime(database_file, None)
     conn = sqlite3.connect(database_file)
 
     print('Creating events table...')
